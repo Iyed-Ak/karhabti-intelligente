@@ -1,0 +1,5 @@
+/* Ensure Tailwind CSS is installed and PostCSS is configured */
+/* These directives require PostCSS with Tailwind plugin */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
