@@ -1,6 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { AuthService } from '../../services/auth';
+import { VehicleService } from '../../services/vehicle';
+import { MaintenanceService } from '../../services/maintenance';
+import { InfractionService } from '../../services/infraction';
 
 @Component({
   selector: 'app-dashboard',
@@ -11,21 +15,53 @@ import { CommonModule } from '@angular/common';
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Tableau de bord</h1>
-        <p class="text-gray-600">Bienvenue, Iyed Akrimi</p>
+        <p class="text-gray-600">Bienvenue, {{currentUser?.name || 'Utilisateur'}}</p>
       </div>
 
       <!-- Stats Cards -->
       <div class="grid md:grid-cols-4 gap-6 mb-8">
-        <div *ngFor="let stat of stats" 
-             class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+        <div class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
           <div class="flex items-center justify-between mb-4">
-            <div class="text-3xl">{{stat.icon}}</div>
-            <span [class]="'px-3 py-1 rounded-full text-sm font-medium ' + stat.badgeClass">
-              {{stat.badge}}
+            <div class="text-3xl">🚗</div>
+            <span class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+              Actifs
             </span>
           </div>
-          <div class="text-3xl font-bold text-gray-800 mb-1">{{stat.value}}</div>
-          <div class="text-gray-600">{{stat.label}}</div>
+          <div class="text-3xl font-bold text-gray-800 mb-1">{{vehicles.length}}</div>
+          <div class="text-gray-600">Véhicules</div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-3xl">🔧</div>
+            <span class="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+              À venir
+            </span>
+          </div>
+          <div class="text-3xl font-bold text-gray-800 mb-1">{{upcomingMaintenances.length}}</div>
+          <div class="text-gray-600">Entretiens</div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-3xl">🚨</div>
+            <span class="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+              En cours
+            </span>
+          </div>
+          <div class="text-3xl font-bold text-gray-800 mb-1">{{pendingInfractions.length}}</div>
+          <div class="text-gray-600">Infractions</div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-3xl">💰</div>
+            <span class="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              Total
+            </span>
+          </div>
+          <div class="text-3xl font-bold text-gray-800 mb-1">{{totalInfractionAmount}}</div>
+          <div class="text-gray-600">Amendes (DT)</div>
         </div>
       </div>
 
@@ -37,14 +73,21 @@ import { CommonModule } from '@angular/common';
           <div class="bg-white rounded-xl shadow-md p-6">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-2xl font-bold text-gray-800">Mes Véhicules</h2>
-              <a routerLink="/vehicles" 
-                 class="text-blue-600 hover:text-blue-700 font-medium">
+              <a routerLink="/vehicles" class="text-blue-600 hover:text-blue-700 font-medium">
                 Voir tout →
               </a>
             </div>
             
+            <div *ngIf="vehicles.length === 0" class="text-center py-8">
+              <div class="text-4xl mb-2">🚗</div>
+              <p class="text-gray-600">Aucun véhicule enregistré</p>
+              <a routerLink="/vehicles" class="text-blue-600 hover:text-blue-700 text-sm mt-2 inline-block">
+                Ajouter un véhicule
+              </a>
+            </div>
+
             <div class="space-y-4">
-              <div *ngFor="let vehicle of vehicles" 
+              <div *ngFor="let vehicle of vehicles.slice(0, 3)" 
                    class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition cursor-pointer">
                 <div class="flex items-center">
                   <div class="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white text-2xl mr-4">
@@ -52,22 +95,15 @@ import { CommonModule } from '@angular/common';
                   </div>
                   <div class="flex-1">
                     <h3 class="font-bold text-gray-800">{{vehicle.brand}} {{vehicle.model}}</h3>
-                    <p class="text-gray-600 text-sm">{{vehicle.year}} • {{vehicle.plate}}</p>
+                    <p class="text-gray-600 text-sm">{{vehicle.year}} • {{vehicle.licensePlate}}</p>
                     <div class="flex items-center mt-2 space-x-2">
                       <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
                         {{vehicle.mileage}} km
                       </span>
-                      <span [class]="'px-2 py-1 text-xs rounded ' + (vehicle.status === 'ok' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800')">
-                        {{vehicle.statusText}}
+                      <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                        Bon état
                       </span>
                     </div>
-                  </div>
-                  <div class="text-right">
-                    <button class="text-gray-400 hover:text-gray-600">
-                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
-                      </svg>
-                    </button>
                   </div>
                 </div>
               </div>
@@ -83,25 +119,29 @@ import { CommonModule } from '@angular/common';
           <div class="bg-white rounded-xl shadow-md p-6">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-2xl font-bold text-gray-800">Prochains Entretiens</h2>
-              <a routerLink="/maintenance" 
-                 class="text-blue-600 hover:text-blue-700 font-medium">
+              <a routerLink="/maintenance" class="text-blue-600 hover:text-blue-700 font-medium">
                 Voir tout →
               </a>
             </div>
 
+            <div *ngIf="upcomingMaintenances.length === 0" class="text-center py-8">
+              <div class="text-4xl mb-2">🔧</div>
+              <p class="text-gray-600">Aucun entretien planifié</p>
+            </div>
+
             <div class="space-y-4">
-              <div *ngFor="let maintenance of upcomingMaintenance" 
+              <div *ngFor="let maintenance of upcomingMaintenances.slice(0, 3)" 
                    class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                <div [class]="'w-12 h-12 rounded-full flex items-center justify-center text-2xl mr-4 ' + maintenance.colorClass">
-                  {{maintenance.icon}}
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-2xl mr-4">
+                  🔧
                 </div>
                 <div class="flex-1">
-                  <h3 class="font-bold text-gray-800">{{maintenance.title}}</h3>
-                  <p class="text-gray-600 text-sm">{{maintenance.vehicle}}</p>
+                  <h3 class="font-bold text-gray-800">{{maintenance.type}}</h3>
+                  <p class="text-gray-600 text-sm">{{maintenance.vehicleId?.brand}} {{maintenance.vehicleId?.model}}</p>
                 </div>
                 <div class="text-right">
-                  <div [class]="'font-bold ' + maintenance.urgencyClass">{{maintenance.date}}</div>
-                  <div class="text-gray-500 text-sm">{{maintenance.distance}}</div>
+                  <div class="font-bold text-orange-600">{{formatDate(maintenance.scheduledDate)}}</div>
+                  <div class="text-gray-500 text-sm">{{maintenance.estimatedMileage}} km</div>
                 </div>
               </div>
             </div>
@@ -114,39 +154,30 @@ import { CommonModule } from '@angular/common';
           <div class="bg-white rounded-xl shadow-md p-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4">Alertes</h2>
             <div class="space-y-3">
-              <div *ngFor="let alert of alerts" 
-                   [class]="'p-4 rounded-lg ' + alert.bgClass">
+              <div *ngIf="pendingInfractions.length > 0" class="p-4 rounded-lg bg-red-50">
                 <div class="flex items-start">
-                  <span class="text-2xl mr-3">{{alert.icon}}</span>
+                  <span class="text-2xl mr-3">🚨</span>
                   <div>
-                    <h3 class="font-bold text-gray-800 text-sm mb-1">{{alert.title}}</h3>
-                    <p class="text-gray-600 text-xs">{{alert.description}}</p>
+                    <h3 class="font-bold text-gray-800 text-sm mb-1">Infractions impayées</h3>
+                    <p class="text-gray-600 text-xs">{{pendingInfractions.length}} infraction(s) en attente</p>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <!-- Dépenses du mois -->
-          <div class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Dépenses du mois</h2>
-            <div class="text-center mb-6">
-              <div class="text-4xl font-bold text-blue-600 mb-2">450 DT</div>
-              <div class="text-gray-600">Novembre 2025</div>
-            </div>
-            <div class="space-y-3">
-              <div *ngFor="let expense of expenses" 
-                   class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <div [class]="'w-10 h-10 rounded-lg flex items-center justify-center mr-3 ' + expense.colorClass">
-                    {{expense.icon}}
-                  </div>
+              <div *ngIf="upcomingMaintenances.length > 0" class="p-4 rounded-lg bg-orange-50">
+                <div class="flex items-start">
+                  <span class="text-2xl mr-3">⚠️</span>
                   <div>
-                    <div class="font-medium text-gray-800">{{expense.category}}</div>
-                    <div class="text-gray-500 text-sm">{{expense.date}}</div>
+                    <h3 class="font-bold text-gray-800 text-sm mb-1">Entretien proche</h3>
+                    <p class="text-gray-600 text-xs">{{upcomingMaintenances.length}} entretien(s) à venir</p>
                   </div>
                 </div>
-                <div class="font-bold text-gray-800">{{expense.amount}} DT</div>
+              </div>
+
+              <div *ngIf="pendingInfractions.length === 0 && upcomingMaintenances.length === 0" 
+                   class="text-center py-4 text-gray-500">
+                <div class="text-3xl mb-2">✅</div>
+                <p class="text-sm">Aucune alerte</p>
               </div>
             </div>
           </div>
@@ -183,101 +214,69 @@ import { CommonModule } from '@angular/common';
     </div>
   `
 })
-export class DashboardComponent {
-  stats = [
-    { icon: '🚗', value: '2', label: 'Véhicules', badge: 'Actifs', badgeClass: 'bg-green-100 text-green-800' },
-    { icon: '🔧', value: '3', label: 'Entretiens', badge: 'À venir', badgeClass: 'bg-orange-100 text-orange-800' },
-    { icon: '🚨', value: '1', label: 'Infractions', badge: 'En cours', badgeClass: 'bg-red-100 text-red-800' },
-    { icon: '💰', value: '450', label: 'Dépenses (DT)', badge: 'Ce mois', badgeClass: 'bg-blue-100 text-blue-800' }
-  ];
+export class DashboardComponent implements OnInit {
+  currentUser: any = null;
+  vehicles: any[] = [];
+  upcomingMaintenances: any[] = [];
+  pendingInfractions: any[] = [];
+  totalInfractionAmount: number = 0;
 
-  vehicles = [
-    {
-      brand: 'Peugeot',
-      model: '208',
-      year: '2019',
-      plate: 'TUN 1234',
-      mileage: '45000',
-      status: 'ok',
-      statusText: 'Bon état'
-    },
-    {
-      brand: 'Renault',
-      model: 'Clio',
-      year: '2021',
-      plate: 'TUN 5678',
-      mileage: '28000',
-      status: 'warning',
-      statusText: 'Entretien proche'
-    }
-  ];
+  constructor(
+    private authService: AuthService,
+    private vehicleService: VehicleService,
+    private maintenanceService: MaintenanceService,
+    private infractionService: InfractionService
+  ) {}
 
-  upcomingMaintenance = [
-    {
-      icon: '🔧',
-      title: 'Vidange moteur',
-      vehicle: 'Peugeot 208',
-      date: 'Dans 5 jours',
-      distance: '500 km',
-      colorClass: 'bg-orange-100',
-      urgencyClass: 'text-orange-600'
-    },
-    {
-      icon: '🛞',
-      title: 'Rotation pneus',
-      vehicle: 'Renault Clio',
-      date: 'Dans 2 semaines',
-      distance: '1200 km',
-      colorClass: 'bg-blue-100',
-      urgencyClass: 'text-blue-600'
-    },
-    {
-      icon: '🔋',
-      title: 'Contrôle batterie',
-      vehicle: 'Peugeot 208',
-      date: 'Dans 1 mois',
-      distance: '2500 km',
-      colorClass: 'bg-green-100',
-      urgencyClass: 'text-green-600'
-    }
-  ];
+  ngOnInit() {
+    this.loadUserData();
+    this.loadDashboardData();
+  }
 
-  alerts = [
-    {
-      icon: '⚠️',
-      title: 'Vidange proche',
-      description: 'Votre vidange est due dans 500 km',
-      bgClass: 'bg-orange-50'
-    },
-    {
-      icon: '🚨',
-      title: 'Infraction impayée',
-      description: 'Échéance dans 10 jours',
-      bgClass: 'bg-red-50'
-    }
-  ];
+  loadUserData() {
+    this.authService.getCurrentUser().subscribe(user => {
+      this.currentUser = user;
+    });
+  }
 
-  expenses = [
-    {
-      icon: '🔧',
-      category: 'Vidange',
-      date: '10 Nov',
-      amount: '120',
-      colorClass: 'bg-blue-100'
-    },
-    {
-      icon: '⛽',
-      category: 'Carburant',
-      date: '15 Nov',
-      amount: '180',
-      colorClass: 'bg-green-100'
-    },
-    {
-      icon: '🚨',
-      category: 'Amende',
-      date: '12 Nov',
-      amount: '150',
-      colorClass: 'bg-red-100'
-    }
-  ];
+  loadDashboardData() {
+    // Charger les véhicules
+    this.vehicleService.loadVehicles().subscribe({
+      next: () => {
+        this.vehicleService.vehicles$.subscribe(vehicles => {
+          this.vehicles = vehicles;
+        });
+      },
+      error: (error) => console.error('Erreur chargement véhicules:', error)
+    });
+
+    // Charger les entretiens
+    this.maintenanceService.loadMaintenances().subscribe({
+      next: () => {
+        this.upcomingMaintenances = this.maintenanceService.getUpcomingMaintenances();
+      },
+      error: (error) => console.error('Erreur chargement entretiens:', error)
+    });
+
+    // Charger les infractions
+    this.infractionService.loadInfractions().subscribe({
+      next: () => {
+        this.pendingInfractions = this.infractionService.getPendingInfractions();
+        this.totalInfractionAmount = this.infractionService.getTotalAmount();
+      },
+      error: (error) => console.error('Erreur chargement infractions:', error)
+    });
+  }
+
+  formatDate(date: string): string {
+    const d = new Date(date);
+    const now = new Date();
+    const diff = Math.floor((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diff === 0) return 'Aujourd\'hui';
+    if (diff === 1) return 'Demain';
+    if (diff > 1 && diff < 7) return `Dans ${diff} jours`;
+    
+    return d.toLocaleDateString('fr-FR');
+  }
 }
