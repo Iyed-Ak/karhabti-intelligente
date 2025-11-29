@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../services/auth';
 
 @Component({
   selector: 'app-register',
@@ -186,15 +187,73 @@ export class RegisterComponent {
   
   confirmPassword = '';
   acceptTerms = false;
+  isLoading = false;
+  errorMessage = '';
+  successMessage = '';
+
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   onRegister() {
+    // Réinitialiser les messages
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    // Vérifier que les mots de passe correspondent
     if (this.user.password !== this.confirmPassword) {
-      alert('Les mots de passe ne correspondent pas');
+      this.errorMessage = 'Les mots de passe ne correspondent pas';
       return;
     }
-    
-    console.log('Register:', this.user);
-    // TODO: Implement registration service
-    alert('Inscription réussie ! (À implémenter avec le backend)');
+
+    // Vérifier que les conditions sont acceptées
+    if (!this.acceptTerms) {
+      this.errorMessage = 'Vous devez accepter les conditions d\'utilisation';
+      return;
+    }
+
+    // Préparer les données
+    const userData = {
+      name: this.user.name,
+      email: this.user.email,
+      phone: this.user.phone,
+      password: this.user.password,
+      confirmPassword: this.confirmPassword
+    };
+
+    // Activer le chargement
+    this.isLoading = true;
+
+    // Appeler le service d'inscription
+    this.authService.register(userData).subscribe({
+      next: (response) => {
+        console.log('Inscription réussie:', response);
+        this.successMessage = 'Inscription réussie ! Redirection...';
+        this.isLoading = false;
+        
+        // Rediriger vers le dashboard après 2 secondes
+        setTimeout(() => {
+          this.router.navigate(['/dashboard']);
+        }, 2000);
+      },
+      error: (error) => {
+        console.error('Erreur inscription:', error);
+        this.isLoading = false;
+        
+        // Gérer les différents types d'erreurs
+        if (error.error && error.error.message) {
+          this.errorMessage = error.error.message;
+        } else if (error.status === 409) {
+          this.errorMessage = 'Cet email est déjà utilisé';
+        } else if (error.status === 400) {
+          this.errorMessage = 'Données invalides. Vérifiez vos informations';
+        } else if (error.status === 0) {
+          this.errorMessage = 'Impossible de se connecter au serveur. Vérifiez votre connexion.';
+        } else {
+          this.errorMessage = 'Une erreur est survenue. Veuillez réessayer.';
+        }
+      }
+    });
   }
 }
