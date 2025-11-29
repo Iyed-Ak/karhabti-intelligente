@@ -40,8 +40,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📝 API Documentation: http://localhost:${PORT}/api`);
-});
+// ============= NOUVEAU CODE À AJOUTER =============
+// Exporte l'app pour les tests
+module.exports = app;
+
+// Démarre le serveur seulement si ce fichier est exécuté directement
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📝 API Documentation: http://localhost:${PORT}/api`);
+  });
+}
+// ============= FIN DU NOUVEAU CODE =============
