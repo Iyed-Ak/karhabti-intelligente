@@ -53,4 +53,15 @@ const vehicleSchema = new mongoose.Schema({
   }
 });
 
+// Middleware pour gérer l'erreur E11000
+vehicleSchema.post('save', function(error, doc, next) {
+  if (error.name === 'MongoServerError' && error.code === 11000) {
+    const field = Object.keys(error.keyPattern)[0];
+    const message = `A vehicle with this ${field} already exists`;
+    next(new Error(message));
+  } else {
+    next(error);
+  }
+});
+
 module.exports = mongoose.model('Vehicle', vehicleSchema);

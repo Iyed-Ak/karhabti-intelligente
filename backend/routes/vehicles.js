@@ -46,20 +46,17 @@ router.post('/', protect, async (req, res) => {
   try {
     const { brand, model, year, plate, vin, mileage, fuel, color, purchaseDate } = req.body;
 
-    // Validation
+    // Validation des champs obligatoires
     if (!brand || !model || !year || !plate || !fuel) {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
 
-    // Vérifier si la plaque existe déjà
-    let existingVehicle = await Vehicle.findOne({ plate });
-    if (existingVehicle) {
-      return res.status(400).json({ message: 'A vehicle with this plate already exists' });
-    }
+    // Nettoyer le VIN : convertir en null s'il est vide
+    const cleanVin = vin && vin.trim() ? vin.trim().toUpperCase() : null;
 
-    // Vérifier si le VIN existe déjà (si fourni)
-    if (vin) {
-      existingVehicle = await Vehicle.findOne({ vin });
+    // Vérifier l'unicité du VIN si fourni
+    if (cleanVin) {
+      const existingVehicle = await Vehicle.findOne({ vin: cleanVin });
       if (existingVehicle) {
         return res.status(400).json({ message: 'A vehicle with this VIN already exists' });
       }
@@ -72,7 +69,7 @@ router.post('/', protect, async (req, res) => {
       model,
       year,
       plate: plate.toUpperCase(),
-      vin,
+      vin: cleanVin,
       mileage: mileage || 0,
       fuel,
       color,
@@ -105,9 +102,21 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this vehicle' });
     }
 
+    // Nettoyer le VIN si fourni
+    if (req.body.vin !== undefined) {
+      req.body.vin = req.body.vin && req.body.vin.trim() ? req.body.vin.trim().toUpperCase() : null;
+
+      // Vérifier l'unicité si nouveau VIN
+      if (req.body.vin && req.body.vin !== vehicle.vin) {
+        const existingVehicle = await Vehicle.findOne({ vin: req.body.vin });
+        if (existingVehicle) {
+          return res.status(400).json({ message: 'A vehicle with this VIN already exists' });
+        }
+      }
+    }
+
     // Mise à jour
-    const updates = req.body;
-    vehicle = await Vehicle.findByIdAndUpdate(req.params.id, updates, {
+    vehicle = await Vehicle.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
     });
