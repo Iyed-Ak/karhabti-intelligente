@@ -18,7 +18,7 @@ const protect = (req, res, next) => {
 
   // Vérifier si le token existe
   if (!token) {
-    return res.status(401).json({ message: 'Not authorized to access this route' });
+    return res.status(401).json({ message: 'No token provided' });
   }
 
   try {
@@ -27,7 +27,7 @@ const protect = (req, res, next) => {
     req.userId = decoded.id;
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Not authorized to access this route' });
+    return res.status(401).json({ message: 'Token is invalid or expired' });
   }
 };
 
